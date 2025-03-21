@@ -8,7 +8,13 @@ import (
 )
 
 func main() {
-	epd := epaper.NewEPD_2in13_V4()
+	cfg := epaper.Config{
+		Model: epaper.EPD_2IN13_V4,
+	}
+	epd, err := epaper.New(cfg)
+	if err != nil {
+		log.Fatalf("cannot create e-paper: %v", err)
+	}
 
 	log.Println("Init")
 	epd.Init()
