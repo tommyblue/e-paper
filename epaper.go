@@ -9,7 +9,8 @@ import (
 type epaper interface {
 	Init()
 	Clear()
-	Paint(byte)
+	PaintColor(byte)
+	PaintImage([]byte)
 }
 
 // list of supported models

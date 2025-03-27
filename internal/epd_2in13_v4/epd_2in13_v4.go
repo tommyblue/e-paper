@@ -97,14 +97,20 @@ func (e *EPD_2in13_V4) Init() {
 	e.WaitUntilIdle()
 }
 
-func (e *EPD_2in13_V4) Paint(color byte) {
+func (e *EPD_2in13_V4) PaintColor(color byte) {
 	img := make([]byte, (EPD_WIDTH/8+1)*EPD_HEIGHT)
-	e.paintNewImage(img, EPD_WIDTH, EPD_HEIGHT, 0, color)
+	e.paintNewColor(img, EPD_WIDTH, EPD_HEIGHT, 0, color)
+}
+
+// PaintImage paints the image to the e-paper display
+func (e *EPD_2in13_V4) PaintImage(src []byte) {
+	img := make([]byte, (EPD_WIDTH/8+1)*EPD_HEIGHT)
+	e.paintNewImage(img, EPD_WIDTH, EPD_HEIGHT, 0, src)
 }
 
 // Clear the image painting to white
 func (e *EPD_2in13_V4) Clear() {
-	e.Paint(0xFF)
+	e.PaintColor(0xFF)
 }
 
 // Internal
@@ -117,13 +123,14 @@ func (e *EPD_2in13_V4) turnOnDisplay() {
 }
 
 type paint struct {
-	image  []byte
-	color  byte
-	width  int
-	height int
+	image    []byte
+	color    byte
+	srcImage []byte
+	width    int
+	height   int
 }
 
-func (e *EPD_2in13_V4) paintNewImage(img []byte, width, height, rotate int, color byte) {
+func (e *EPD_2in13_V4) paintNewColor(img []byte, width, height, rotate int, color byte) {
 	p := paint{
 		image:  img,
 		color:  color,
@@ -137,9 +144,44 @@ func (e *EPD_2in13_V4) paintNewImage(img []byte, width, height, rotate int, colo
 		w = (p.width / 8)
 	}
 	h := p.height
-	for j := 0; j < h; j++ {
-		for i := 0; i < w; i++ {
+	for j := range h {
+		for i := range w {
 			p.image[i+j*w] = color
+		}
+	}
+
+	if rotate == 0 || rotate == 180 {
+		p.width = width
+		p.height = height
+	} else {
+		p.width = height
+		p.height = width
+	}
+
+	e.display(p)
+}
+
+func (e *EPD_2in13_V4) paintNewImage(dst []byte, width, height, rotate int, src []byte) {
+	p := paint{
+		image:    dst,
+		width:    width,
+		srcImage: src,
+		height:   height,
+	}
+
+	// paint color
+	w := (p.width/8 + 1)
+	if p.width%8 == 0 {
+		w = (p.width / 8)
+	}
+	h := p.height
+	for j := range h {
+		for i := range w {
+			idx := i + j*w
+			if idx >= len(p.srcImage) || idx >= 3966 {
+				break
+			}
+			p.image[idx] = p.srcImage[idx]
 		}
 	}
 
@@ -162,8 +204,8 @@ func (e *EPD_2in13_V4) display(p paint) {
 	h := p.height
 
 	e.sendCommand(0x24)
-	for j := 0; j < h; j++ {
-		for i := 0; i < w; i++ {
+	for j := range h {
+		for i := range w {
 			e.sendData(p.image[i+j*w])
 		}
 	}
